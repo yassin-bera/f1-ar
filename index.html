@@ -1,49 +1,14 @@
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تجربه فرمول یک</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
-</head>
-<body>
-
-    <model-viewer 
-        src="assets/car.glb" 
-        ios-src=""
-        poster="https://via.placeholder.com/400x300.png?text=Loading+F1+Car..." 
-        alt="A 3D model of an F1 car"
+<model-viewer 
+        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" 
+        poster="https://modelviewer.dev/assets/poster-astronaut.png" 
+        alt="A 3D model of an astronaut"
         shadow-intensity="1"
         camera-controls
         auto-rotate
         ar
         ar-modes="webxr scene-viewer quick-look"
-        camera-orbit="45deg 55deg 2.5m"
-        field-of-view="30deg"
     >
-        
         <button slot="ar-button" id="ar-button">
             شروع واقعیت افزوده (AR)
         </button>
-
-        <div id="ar-prompt">
-            <img src="https://modelviewer.dev/shared-assets/icons/hand.png">
-        </div>
     </model-viewer>
-
-    <div class="ui-container">
-        <div class="header">
-            <h1>F1 EXPERIENCE</h1>
-            <span class="live-tag">LIVE AR</span>
-        </div>
-
-        <div class="controls">
-            <p>ماشین را در محیط واقعی قرار دهید</p>
-        </div>
-    </div>
-
-</body>
-</html>
