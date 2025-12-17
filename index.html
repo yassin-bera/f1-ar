@@ -7,31 +7,30 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
     
     <style>
-        /* تنظیمات کلی صفحه */
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
             background-color: #000;
-            font-family: 'Orbitron', sans-serif; /* فونت فضایی */
+            font-family: 'Orbitron', sans-serif;
             overflow: hidden;
             height: 100vh;
+            width: 100vw;
+            /* حیاتی: جلوگیری از اسکرول صفحه برای کار کردن تاچ روی مدل */
+            touch-action: none; 
         }
 
-        /* استایل مدل ویوور */
         model-viewer {
             width: 100%;
             height: 100%;
-            /* پس زمینه گرادینت دارک */
             background: radial-gradient(circle at center, #2a2a2a 0%, #000000 100%);
             --poster-color: transparent;
         }
 
-        /* --- بخش رابط کاربری (UI) --- */
-        
-        /* کانتینر اصلی که روی همه چیز قرار میگیره */
+        /* --- UI --- */
         .ui-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* کلیک‌ها ازش رد بشن */
+            pointer-events: none;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -39,67 +38,38 @@
             z-index: 10;
         }
 
-        /* هدر شیشه‌ای بالای صفحه */
         .header-glass {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(255, 255, 255, 0.05); /* شیشه‌ای */
-            backdrop-filter: blur(15px); /* تاری پشت شیشه */
-            -webkit-backdrop-filter: blur(15px); /* برای آیفون */
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             padding: 15px 20px;
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
 
-        .logo-text {
-            color: #fff;
-            font-size: 1.1rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-        }
-        
-        .logo-highlight { color: #ff0040; /* قرمز فرمول یک */ }
-
+        .logo-text { color: #fff; font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; }
+        .logo-highlight { color: #ff0040; }
         .status-badge {
-            background: rgba(0, 255, 136, 0.1);
-            color: #00ff88;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            border: 1px solid rgba(0, 255, 136, 0.3);
+            background: rgba(0, 255, 136, 0.1); color: #00ff88; padding: 6px 12px;
+            border-radius: 20px; font-size: 0.75rem; border: 1px solid rgba(0, 255, 136, 0.3);
             display: flex; align-items: center; gap: 5px;
         }
-        /* نقطه چشمک زن */
         .blink-dot { width: 8px; height: 8px; background: #00ff88; border-radius: 50%; animation: blink 2s infinite; }
 
-        /* استایل دکمه AR */
         #ar-button {
-            position: absolute;
-            bottom: 40px; left: 50%;
-            transform: translateX(-50%);
-            /* گرادینت جذاب برای دکمه */
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
             background: linear-gradient(45deg, #ff0040, #ff5e00);
-            color: white;
-            border: none;
-            padding: 14px 30px;
-            border-radius: 50px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1rem;
-            font-weight: bold;
-            letter-spacing: 1px;
-            box-shadow: 0 0 20px rgba(255, 0, 64, 0.4);
-            transition: all 0.3s ease;
-            pointer-events: auto; /* دکمه باید قابل کلیک باشه */
+            color: white; border: none; padding: 14px 30px; border-radius: 50px;
+            font-family: 'Orbitron', sans-serif; font-size: 1rem; font-weight: bold;
+            letter-spacing: 1px; box-shadow: 0 0 20px rgba(255, 0, 64, 0.4);
+            transition: all 0.3s ease; pointer-events: auto;
         }
-
-        #ar-button:active { transform: translateX(-50%) scale(0.95); } /* افکت کلیک */
-
-        /* انیمیشن چشمک */
+        #ar-button:active { transform: translateX(-50%) scale(0.95); }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-        /* مخفی کردن لوگوی پیشفرض گوگل در حالت AR */
         .slot-ar-placement { display: none; }
     </style>
     
@@ -110,22 +80,21 @@
     <div class="ui-overlay">
         <div class="header-glass">
             <div class="logo-text">F1 <span class="logo-highlight">AR</span> HUB</div>
-            <div class="status-badge"><div class="blink-dot"></div>READY</div>
+            <div class="status-badge"><div class="blink-dot"></div>DRAG TO MOVE</div>
         </div>
-        </div>
+    </div>
 
     <model-viewer 
         src="assets/car.glb"
         alt="F1 Racing Car"
         ar
         ar-modes="webxr scene-viewer quick-look" 
+        ar-placement="floor"
         camera-controls 
-        auto-rotate
+        touch-action="none"
         shadow-intensity="1.5" 
         shadow-softness="1"
         bounds="tight"
-        environment-image="neutral"
-        exposure="1.2"
     >
         <button slot="ar-button" id="ar-button">
             START ENGINE 🏎️
