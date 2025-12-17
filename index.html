@@ -2,35 +2,34 @@
 <html lang="fa">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>F1 AR Experience</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>F1 AR Viewer</title>
     
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* ریست کردن همه فاصله‌ها */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
         body {
-            background-color: #000;
-            font-family: 'Orbitron', sans-serif;
-            overflow: hidden;
-            height: 100vh;
+            background-color: #0d0d0d;
+            font-family: sans-serif;
+            overflow: hidden; /* حذف اسکرول */
             width: 100vw;
-            /* حیاتی: جلوگیری از اسکرول صفحه برای کار کردن تاچ روی مدل */
-            touch-action: none; 
+            /* استفاده از dvh برای جلوگیری از پرش وقتی نوار آدرس مرورگر جمع میشه */
+            height: 100dvh; 
         }
 
         model-viewer {
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle at center, #2a2a2a 0%, #000000 100%);
+            background: linear-gradient(180deg, #1a1a1a 0%, #000000 100%);
             --poster-color: transparent;
         }
 
-        /* --- UI --- */
+        /* --- UI تمیز و ریسپانسیو --- */
         .ui-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
+            pointer-events: none; /* کلیک از روی این رد میشه */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -38,39 +37,48 @@
             z-index: 10;
         }
 
-        .header-glass {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            padding: 15px 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        /* لوگوی ساده بالا */
+        .logo {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 15px;
+            border-radius: 20px;
+            align-self: flex-start; /* چسبیدن به چپ */
+            backdrop-filter: blur(5px);
         }
 
-        .logo-text { color: #fff; font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; }
-        .logo-highlight { color: #ff0040; }
-        .status-badge {
-            background: rgba(0, 255, 136, 0.1); color: #00ff88; padding: 6px 12px;
-            border-radius: 20px; font-size: 0.75rem; border: 1px solid rgba(0, 255, 136, 0.3);
-            display: flex; align-items: center; gap: 5px;
-        }
-        .blink-dot { width: 8px; height: 8px; background: #00ff88; border-radius: 50%; animation: blink 2s infinite; }
-
+        /* دکمه AR مینیمال و گرد */
         #ar-button {
-            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            background: linear-gradient(45deg, #ff0040, #ff5e00);
-            color: white; border: none; padding: 14px 30px; border-radius: 50px;
-            font-family: 'Orbitron', sans-serif; font-size: 1rem; font-weight: bold;
-            letter-spacing: 1px; box-shadow: 0 0 20px rgba(255, 0, 64, 0.4);
-            transition: all 0.3s ease; pointer-events: auto;
+            position: absolute;
+            bottom: 30px; left: 50%;
+            transform: translateX(-50%);
+            width: 60px; height: 60px;
+            background-color: white;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            pointer-events: auto; /* دکمه باید تاچ بشه */
+            transition: transform 0.2s;
         }
-        #ar-button:active { transform: translateX(-50%) scale(0.95); }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .slot-ar-placement { display: none; }
+        
+        #ar-button:active { transform: translateX(-50%) scale(0.9); }
+
+        /* آیکون داخل دکمه */
+        #ar-button svg { width: 24px; height: 24px; fill: #000; }
+
+        /* --- تنظیمات مخصوص حالت افقی (Landscape) --- */
+        @media (orientation: landscape) {
+            .logo { font-size: 12px; padding: 5px 10px; }
+            #ar-button { 
+                bottom: 20px; 
+                width: 50px; height: 50px; /* دکمه کمی کوچکتر */
+            }
+        }
     </style>
     
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
@@ -78,27 +86,31 @@
 <body>
 
     <div class="ui-overlay">
-        <div class="header-glass">
-            <div class="logo-text">F1 <span class="logo-highlight">AR</span> HUB</div>
-            <div class="status-badge"><div class="blink-dot"></div>DRAG TO MOVE</div>
-        </div>
+        <div class="logo">F1 AR MODEL</div>
     </div>
 
     <model-viewer 
         src="assets/car.glb"
-        alt="F1 Racing Car"
+        alt="F1 Car"
         ar
         ar-modes="webxr scene-viewer quick-look" 
         ar-placement="floor"
+        ar-scale="auto"
         camera-controls 
+        disable-tap
         touch-action="none"
-        shadow-intensity="1.5" 
-        shadow-softness="1"
-        bounds="tight"
+        shadow-intensity="1.5"
+        shadow-softness="0.8"
+        environment-image="neutral"
+        exposure="1.0"
     >
-        <button slot="ar-button" id="ar-button">
-            START ENGINE 🏎️
+        
+        <button slot="ar-button" id="ar-button" aria-label="مشاهده در محیط">
+            <svg viewBox="0 0 24 24">
+                <path d="M5 3C3.9 3 3 3.9 3 5V9H5V5H9V3H5ZM15 3V5H19V9H21V5C21 3.9 20.1 3 19 3H15ZM5 15H3V19C3 20.1 3.9 21 5 21H9V19H5V15ZM19 15V19H15V21H19C20.1 21 21 20.1 21 19V15H19Z"/>
+            </svg>
         </button>
+
     </model-viewer>
 
 </body>
