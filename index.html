@@ -1,14 +1,43 @@
-<model-viewer 
-        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" 
-        poster="https://modelviewer.dev/assets/poster-astronaut.png" 
-        alt="A 3D model of an astronaut"
-        shadow-intensity="1"
-        camera-controls
-        auto-rotate
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نمایش ماشین F1</title>
+    <style>
+        body { margin: 0; background-color: #111; color: white; font-family: sans-serif; }
+        /* مدل تمام صفحه */
+        model-viewer { width: 100vw; height: 100vh; background: radial-gradient(circle, #333, #000); }
+        /* دکمه شروع AR */
+        #ar-button {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 12px 24px; border-radius: 30px; border: none;
+            background: white; color: black; font-weight: bold; font-size: 16px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+    </style>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+</head>
+<body>
+
+    <model-viewer 
+        src="assets/car.glb"
+        alt="مدل سه بعدی ماشین فرمول یک"
         ar
-        ar-modes="webxr scene-viewer quick-look"
-    >
+        ar-modes="webxr scene-viewer quick-look" 
+        camera-controls 
+        auto-rotate
+        shadow-intensity="1">
+        
         <button slot="ar-button" id="ar-button">
-            شروع واقعیت افزوده (AR)
+            🏎️ قرار دادن ماشین در محیط
         </button>
+
+        <div slot="progress-bar" style="position: absolute; top: 10px; left: 10px; color: #aaa;">
+            در حال بارگیری مدل...
+        </div>
+
     </model-viewer>
+
+</body>
+</html>
