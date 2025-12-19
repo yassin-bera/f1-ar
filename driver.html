@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>3D Driver Mode (Back Camera)</title>
+    <title>3D Driver Mode (Robust)</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -17,11 +17,9 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background-color: #000; font-family: 'Orbitron', sans-serif; overflow: hidden; width: 100vw; height: 100dvh; }
 
-        /* ویدیو بدون حالت آینه‌ای (برای دوربین پشت) */
         .input_video { 
             position: absolute; width: 100%; height: 100%; 
-            object-fit: cover; 
-            opacity: 0; z-index: 0; 
+            object-fit: cover; opacity: 0; z-index: 0; 
         }
         
         #canvas3d { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 1; }
@@ -58,15 +56,15 @@
 
         #start-camera-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 50;
+            background: rgba(0,0,0,0.95); z-index: 50;
             display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; text-align: center;
         }
         #start-btn {
             padding: 15px 30px; background: #ff0040; color: white; border: none; border-radius: 30px;
             font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 0 20px rgba(255, 0, 64, 0.5);
         }
-        #status-msg { color: #00ff88; font-size: 14px; margin-top: 20px; max-width: 80%; }
-        #error-msg { color: #ff3333; font-size: 14px; margin-top: 10px; display: none; }
+        #status-msg { color: #00ff88; font-size: 14px; margin-top: 20px; max-width: 80%; line-height: 1.5; }
+        #error-msg { color: #ff3333; font-size: 14px; margin-top: 10px; display: none; max-width: 80%; }
     </style>
 </head>
 <body>
@@ -75,10 +73,10 @@
     <canvas id="canvas3d"></canvas>
 
     <div id="start-camera-overlay">
-        <h2 style="color:white;">حالت پرو لباس (دوربین اصلی)</h2>
-        <p style="color:#ccc; font-size: 0.9rem;">لطفا فایل suit.glb را آپلود کرده باشید</p>
-        <button id="start-btn" onclick="startExperience()">📷 روشن کردن دوربین پشت</button>
-        <p id="status-msg">منتظر شروع...</p>
+        <h2 style="color:white;">حالت پرو لباس</h2>
+        <p style="color:#bbb; font-size: 0.8rem; margin-bottom: 20px;">مطمئن شوید برنامه دیگری از دوربین استفاده نمی‌کند</p>
+        <button id="start-btn" onclick="startExperience()">📷 فعال‌سازی دوربین</button>
+        <p id="status-msg"></p>
         <p id="error-msg"></p>
     </div>
 
@@ -98,10 +96,8 @@
     </model-viewer>
 
     <script>
-        // نام فایل مدل لباس (حتما چک کنید که این فایل در گیت‌هاب باشد)
+        // آدرس مدل سه بعدی (این فایل باید در کنار driver.html باشد)
         const MODEL_URL = 'suit.glb'; 
-        
-        // اگر لباس خیلی کوچک یا بزرگ بود، این عدد را تغییر دهید (مثلا 10 یا 50)
         const BASE_SCALE = 20; 
 
         const videoElement = document.querySelector('.input_video');
@@ -110,13 +106,12 @@
         const statusMsg = document.getElementById('status-msg');
         const errorMsg = document.getElementById('error-msg');
         
-        // --- Three.js Setup ---
+        // --- Three.js Init ---
         const scene = new THREE.Scene();
         const camera3d = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, alpha: true, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         
-        // نور قوی‌تر برای دیده شدن مدل
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 2);
@@ -128,29 +123,21 @@
         const loader = new THREE.GLTFLoader();
         
         // لود مدل
-        statusMsg.innerText = "در حال دانلود مدل suit.glb ...";
         loader.load(MODEL_URL, (gltf) => {
             suitModel = gltf.scene;
             suitModel.visible = false;
             scene.add(suitModel);
-            console.log("Model Loaded Successfully");
-            statusMsg.innerText = "مدل لود شد. دکمه بالا را بزنید.";
-        }, 
-        (xhr) => {
-            // نمایش درصد لود
-            const percent = Math.round((xhr.loaded / xhr.total * 100));
-            if(percent < 100) statusMsg.innerText = `در حال دانلود مدل: ${percent}%`;
-        },
-        (error) => {
+            console.log("Suit Model Loaded");
+            statusMsg.innerText = "مدل لود شد. آماده برای دوربین...";
+        }, undefined, (error) => {
             console.error(error);
             errorMsg.style.display = 'block';
-            errorMsg.innerText = "خطا: فایل suit.glb پیدا نشد! لطفا مطمئن شوید فایل را آپلود کرده‌اید.";
-            statusMsg.innerText = "";
+            errorMsg.innerText = "⚠️ فایل suit.glb پیدا نشد! لطفا فایل را در گیت‌هاب آپلود کنید.";
         });
 
         camera3d.position.z = 5;
 
-        // --- MediaPipe Setup ---
+        // --- MediaPipe Init ---
         const pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
         pose.setOptions({
             modelComplexity: 1,
@@ -160,7 +147,6 @@
         });
 
         pose.onResults((results) => {
-            // آپدیت پس زمینه ویدیو
             if(videoTexture) {
                 videoTexture.needsUpdate = true;
                 scene.background = videoTexture;
@@ -170,56 +156,68 @@
                 const leftShoulder = results.poseLandmarks[11];
                 const rightShoulder = results.poseLandmarks[12];
                 
-                // شرط دیده شدن شانه‌ها
                 if(leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5) {
                     suitModel.visible = true;
-                    
-                    // مخفی کردن پیام‌ها وقتی مدل پیدا شد
                     statusMsg.style.display = 'none';
 
                     const centerX = (leftShoulder.x + rightShoulder.x) / 2;
                     const centerY = (leftShoulder.y + rightShoulder.y) / 2;
                     
-                    // محاسبات مختصات برای دوربین پشت (بدون قرینه سازی)
-                    const x = (centerX - 0.5) * 2; // نرمال سازی (-1 تا 1)
-                    const y = -(centerY * 2 - 1);  // معکوس کردن Y (چون در 3D بالا مثبت است)
+                    const x = (centerX - 0.5) * 2;
+                    const y = -(centerY * 2 - 1);
                     
-                    // تنظیم موقعیت (ضرایب 4 و 3 برای پوشش عرض صفحه است)
                     suitModel.position.set(x * 5, y * 3.5, 0); 
                     
-                    // محاسبه سایز داینامیک بر اساس فاصله شانه‌ها
                     const dist = Math.sqrt(Math.pow(rightShoulder.x - leftShoulder.x, 2) + Math.pow(rightShoulder.y - leftShoulder.y, 2));
                     const s = dist * BASE_SCALE; 
                     suitModel.scale.set(s, s, s);
                     
-                    // محاسبه چرخش (Rotation) برای کج شدن بدن
                     const angle = Math.atan2(rightShoulder.y - leftShoulder.y, rightShoulder.x - leftShoulder.x);
-                    // چرخش حول محور Z (چپ و راست شدن شانه‌ها)
-                    // در مدیاپایپ زاویه برعکس است، با منفی اصلاح میکنیم
                     suitModel.rotation.z = -angle; 
-                } else {
-                     // اگر شانه‌ها دیده نشدند مدل را موقتا مخفی کن
-                     // suitModel.visible = false; 
                 }
             }
             renderer.render(scene, camera3d);
         });
 
-        async function startExperience() {
+        // --- تابع هوشمند باز کردن دوربین ---
+        async function getCameraStream() {
+            // تلاش ۱: دوربین پشت با کیفیت HD
             try {
-                const btn = document.getElementById('start-btn');
-                btn.innerText = "در حال راه‌اندازی دوربین...";
-                btn.disabled = true;
-                
-                // درخواست دوربین پشت (environment)
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: 'environment', // کلید باز کردن دوربین پشت
-                        width: { ideal: 1280 }, 
-                        height: { ideal: 720 } 
-                    },
+                return await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
                     audio: false
                 });
+            } catch (e) { console.log("HD failed, trying SD..."); }
+
+            // تلاش ۲: دوربین پشت بدون کیفیت خاص
+            try {
+                return await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' },
+                    audio: false
+                });
+            } catch (e) { console.log("Back camera failed, trying any camera..."); }
+
+            // تلاش ۳: هر دوربینی که شد
+            try {
+                return await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+            } catch (e) {
+                throw e; // اگر هیچکدام نشد، ارور بده
+            }
+        }
+
+        async function startExperience() {
+            const btn = document.getElementById('start-btn');
+            const errBox = document.getElementById('error-msg');
+            
+            btn.innerText = "⏳ در حال اتصال...";
+            btn.disabled = true;
+            errBox.style.display = 'none';
+            
+            try {
+                const stream = await getCameraStream();
 
                 videoElement.srcObject = stream;
                 videoElement.setAttribute("playsinline", true); 
@@ -238,10 +236,18 @@
 
             } catch (err) {
                 console.error(err);
-                errorMsg.style.display = 'block';
-                errorMsg.innerText = "خطا: دسترسی به دوربین پشت داده نشد یا موجود نیست.";
-                document.getElementById('start-btn').innerText = "تلاش مجدد";
-                document.getElementById('start-btn').disabled = false;
+                btn.innerText = "تلاش مجدد";
+                btn.disabled = false;
+                errBox.style.display = 'block';
+                
+                // تشخیص نوع ارور برای راهنمایی بهتر
+                if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    errBox.innerHTML = "❌ دوربین درگیر است!<br>لطفاً برنامه‌های دیگر (مثل اینستاگرام) را کاملاً ببندید و دوباره امتحان کنید.";
+                } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    errBox.innerHTML = "❌ دسترسی رد شد.<br>لطفاً در تنظیمات مرورگر اجازه دسترسی به دوربین را بدهید.";
+                } else {
+                    errBox.innerText = "❌ خطا: " + err.message;
+                }
             }
         }
 
@@ -251,7 +257,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        function takePhoto() { alert('لطفاً اسکرین‌شات بگیرید.'); }
+        function takePhoto() { alert('لطفاً اسکرین‌شات بگیرید (دکمه Power + کم کردن صدا)'); }
     </script>
 </body>
 </html>
