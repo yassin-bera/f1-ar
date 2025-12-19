@@ -21,6 +21,8 @@
             width: 100%;
             height: 100%;
             background: radial-gradient(circle at center, #2a2a2a 0%, #000000 100%);
+            /* بهینه سازی برای حرکت نرم */
+            --poster-color: transparent;
         }
 
         .ui-overlay {
@@ -82,19 +84,47 @@
     <model-viewer 
         src="https://f1-ar-nine.vercel.app/assets/car.glb"
         alt="F1 Racing Car"
+        
+        /* تنظیمات AR */
         ar
-        ar-modes="scene-viewer webxr quick-look" 
+        ar-modes="webxr scene-viewer quick-look" 
         ar-placement="floor"
         ar-scale="auto"
-        scale="0.1 0.1 0.1"
+        
+        /* کنترل‌های کاربر و حرکت */
         camera-controls 
-        shadow-intensity="1.5"
-        shadow-softness="0.8"
+        enable-pan 
+        touch-action="pan-y"
+        interpolation-decay="200"
+        
+        /* تنظیمات ظاهری و سایه برای واقع‌گرایی */
+        scale="0.1 0.1 0.1"
+        shadow-intensity="2"
+        shadow-softness="0"
+        tone-mapping="commerce"
+        exposure="1"
     >
         <button slot="ar-button" id="ar-button">
             START ENGINE
         </button>
     </model-viewer>
+
+    <script>
+        // اسکریپت کمکی برای اطمینان از لود صحیح
+        const modelViewer = document.querySelector('model-viewer');
+        
+        modelViewer.addEventListener('load', () => {
+            console.log('F1 Car Loaded - Ready for AR');
+            // در صورت نیاز به تنظیم متریال‌ها می‌توان اینجا کد زد
+        });
+
+        // بهینه‌سازی تجربه AR در iOS
+        modelViewer.addEventListener('ar-status', (event) => {
+            if(event.detail.status === 'session-started'){
+                console.log('AR Session Started');
+            }
+        });
+    </script>
 
 </body>
 </html>
