@@ -3,25 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Driver Suit Mode</title>
+    <title>3D Driver Mode</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lights/RectAreaLightUniformsLib.js"></script>
+
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background-color: #000; font-family: 'Orbitron', sans-serif; overflow: hidden; width: 100vw; height: 100dvh; }
 
-        /* لایه دوربین */
         .input_video { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; }
         
-        /* لایه بوم نقاشی برای لباس */
-        .output_canvas { position: absolute; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        
-        /* ماشین در پس‌زمینه (شفاف) */
+        /* لایه سه بعدی لباس */
+        #canvas3d { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+
+        /* ماشین در پس‌زمینه */
         model-viewer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2;
             background-color: transparent; pointer-events: auto; --poster-color: transparent;
@@ -47,8 +51,7 @@
         .shutter-btn {
             width: 70px; height: 70px; background: rgba(255,255,255,0.2); border-radius: 50%;
             border: 4px solid white; position: absolute; bottom: 40px; left: 50%;
-            transform: translateX(-50%); pointer-events: auto; cursor: pointer; display: flex; justify-content: center; align-items: center;
-            z-index: 100;
+            transform: translateX(-50%); pointer-events: auto; cursor: pointer; display: flex; justify-content: center; align-items: center; z-index: 100;
         }
         .shutter-inner { width: 54px; height: 54px; background: white; border-radius: 50%; transition: 0.1s; }
         .shutter-btn:active .shutter-inner { transform: scale(0.9); background: #ff0040; }
@@ -62,13 +65,14 @@
 <body>
 
     <video class="input_video"></video>
-    <canvas class="output_canvas"></canvas>
-    <div id="loading">در حال راه‌اندازی دوربین...<br>لطفاً دسترسی را تأیید کنید</div>
+    <canvas id="canvas3d"></canvas> 
+    
+    <div id="loading">در حال لود مدل سه بعدی...<br>لطفاً صبر کنید</div>
 
     <div class="ui-overlay">
         <div class="header-glass">
             <a href="index.html" class="back-btn">← بازگشت</a>
-            <div style="color:#fff; font-weight:bold;">DRIVER SUIT</div>
+            <div style="color:#fff; font-weight:bold;">3D SUIT MODE</div>
         </div>
 
         <div class="shutter-btn" onclick="takePhoto()">
@@ -89,22 +93,50 @@
     </model-viewer>
 
     <script>
-        // آدرس عکس آپلود شده شما (مطمئن شوید فایل در کنار driver.html باشد)
-        const SUIT_IMAGE_URL = 'image_651907.png'; 
+        // *** آدرس فایل مدل سه بعدی لباس (حتما فرمت .glb باشد) ***
+        // این یک مدل نمونه ربات است. شما باید فایل لباس خود را آپلود و نامش را اینجا بگذارید
+        const MODEL_URL = 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb'; 
         
         const videoElement = document.getElementsByClassName('input_video')[0];
-        const canvasElement = document.getElementsByClassName('output_canvas')[0];
-        const canvasCtx = canvasElement.getContext('2d');
+        const canvas3d = document.getElementById('canvas3d');
         const loadingMsg = document.getElementById('loading');
-        let suitImage = new Image();
         
-        // هندل کردن لود شدن عکس
-        suitImage.src = SUIT_IMAGE_URL;
-        suitImage.onload = () => console.log("Suit Image Loaded");
-        suitImage.onerror = () => alert("تصویر لباس (image_651907.png) پیدا نشد. لطفا چک کنید فایل در گیت‌هاب کنار فایل html باشد.");
+        // --- تنظیمات Three.js ---
+        const scene = new THREE.Scene();
+        const camera3d = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // نورپردازی برای واقعی شدن
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+        directionalLight.position.set(0, 10, 10);
+        scene.add(directionalLight);
 
+        let suitModel = null;
+
+        // لود کردن مدل سه بعدی
+        const loader = new THREE.GLTFLoader();
+        loader.load(MODEL_URL, (gltf) => {
+            suitModel = gltf.scene;
+            
+            // تنظیم سایز اولیه و چرخش
+            suitModel.scale.set(5, 5, 5); // سایز را بسته به مدل باید کم و زیاد کنید
+            suitModel.visible = false; // اول مخفی باشد تا بدن پیدا شود
+            
+            scene.add(suitModel);
+            console.log("3D Model Loaded");
+            loadingMsg.innerHTML = "مدل لود شد.<br>لطفا جلوی دوربین بایستید.";
+        }, undefined, (error) => {
+            console.error(error);
+            loadingMsg.innerHTML = "خطا در لود مدل سه بعدی";
+        });
+
+        camera3d.position.z = 5;
+
+        // --- هوش مصنوعی MediaPipe ---
         const pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
-        
         pose.setOptions({
             modelComplexity: 1,
             smoothLandmarks: true,
@@ -115,48 +147,76 @@
         pose.onResults(onResults);
 
         function onResults(results) {
-            loadingMsg.style.display = 'none';
-            canvasElement.width = videoElement.videoWidth;
-            canvasElement.height = videoElement.videoHeight;
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            
-            if (results.poseLandmarks) {
+            // رسم تصویر پس زمینه (دوربین)
+            // در روش سه بعدی، ما دوربین را به عنوان پس زمینه ست نمیکنیم چون ویدیو زیر کنواس پخش میشود
+            // فقط مدل را آپدیت میکنیم
+
+            if (results.poseLandmarks && suitModel) {
+                loadingMsg.style.display = 'none';
+                
                 const leftShoulder = results.poseLandmarks[11];
                 const rightShoulder = results.poseLandmarks[12];
                 
-                // اگر شانه‌ها دیده شدند
                 if(leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5) {
-                    const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x) * canvasElement.width;
-                    const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * canvasElement.width;
-                    const shoulderY = ((leftShoulder.y + rightShoulder.y) / 2) * canvasElement.height;
-                    const angle = Math.atan2(rightShoulder.y - leftShoulder.y, rightShoulder.x - leftShoulder.x);
+                    suitModel.visible = true;
 
-                    // تنظیم ابعاد لباس
-                    const suitWidth = shoulderWidth * 3.2; 
-                    const suitHeight = suitWidth * 1.3; 
+                    // تبدیل مختصات دوبعدی مدیاپایپ به مختصات سه بعدی Three.js
+                    // این بخش نیاز به کالیبراسیون دقیق دارد
                     
-                    canvasCtx.translate(centerX, shoulderY);
-                    canvasCtx.rotate(angle);
-                    canvasCtx.drawImage(suitImage, -suitWidth / 2, -suitHeight / 6, suitWidth, suitHeight);
-                    canvasCtx.restore();
+                    const width = window.innerWidth;
+                    const height = window.innerHeight;
+
+                    // پیدا کردن مرکز شانه ها
+                    const centerX = (leftShoulder.x + rightShoulder.x) / 2;
+                    const centerY = (leftShoulder.y + rightShoulder.y) / 2;
+
+                    // تبدیل به مختصات دنیای سه بعدی
+                    // مقادیر x و y را نرمالایز میکنیم (-1 تا 1)
+                    const x = (1 - centerX) * 2 - 1; // معکوس چون دوربین سلفی است
+                    const y = -(centerY * 2 - 1); 
+                    
+                    // حرکت دادن مدل
+                    // ضریب 8 برای تنظیم حساسیت حرکت است
+                    suitModel.position.set(x * 4, y * 3, 0); 
+
+                    // محاسبه چرخش (اگر بدن کج شود)
+                    const angle = Math.atan2(rightShoulder.y - leftShoulder.y, rightShoulder.x - leftShoulder.x);
+                    suitModel.rotation.z = angle; // چرخش در راستای Z
+                    suitModel.rotation.y = Math.sin(x) * 0.5; // کمی چرخش سه بعدی وقتی به چپ و راست میروید
+                    
+                    // محاسبه زوم (سایز) بر اساس فاصله شانه ها
+                    // وقتی عقب میروید فاصله شانه کم میشود
+                    const shoulderDist = Math.sqrt(
+                        Math.pow(rightShoulder.x - leftShoulder.x, 2) + 
+                        Math.pow(rightShoulder.y - leftShoulder.y, 2)
+                    );
+                    
+                    // فرمول اسکیل داینامیک
+                    const baseScale = 7; // سایز پایه مدل را اینجا تغییر دهید
+                    const dynamicScale = baseScale * (shoulderDist * 3);
+                    suitModel.scale.set(dynamicScale, dynamicScale, dynamicScale);
                 }
             }
+            
+            renderer.render(scene, camera3d);
         }
 
+        // راه‌اندازی دوربین
         const camera = new Camera(videoElement, {
             onFrame: async () => { await pose.send({image: videoElement}); },
             width: 1280, height: 720
         });
         camera.start();
 
+        // هندل کردن ریسایز پنجره
+        window.addEventListener('resize', () => {
+            camera3d.aspect = window.innerWidth / window.innerHeight;
+            camera3d.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
         function takePhoto() {
-            const flash = document.createElement('div');
-            flash.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:200;transition:opacity 0.5s;";
-            document.body.appendChild(flash);
-            setTimeout(() => flash.style.opacity = 0, 50);
-            setTimeout(() => flash.remove(), 500);
-            alert('برای ذخیره، لطفاً اسکرین‌شات بگیرید.');
+            alert('لطفاً اسکرین‌شات بگیرید.');
         }
     </script>
 </body>
