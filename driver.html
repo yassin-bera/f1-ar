@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>3D Driver Mode</title>
+    <title>3D Driver Mode (Back Camera)</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -17,13 +17,15 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background-color: #000; font-family: 'Orbitron', sans-serif; overflow: hidden; width: 100vw; height: 100dvh; }
 
-        /* ویدیو مخفی (فقط برای پردازش) */
-        .input_video { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0; z-index: 0; }
+        /* ویدیو بدون حالت آینه‌ای (برای دوربین پشت) */
+        .input_video { 
+            position: absolute; width: 100%; height: 100%; 
+            object-fit: cover; 
+            opacity: 0; z-index: 0; 
+        }
         
-        /* بوم اصلی که تصویر دوربین و مدل را نشان میدهد */
         #canvas3d { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 1; }
 
-        /* ماشین در لایه بالاتر */
         model-viewer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5;
             background-color: transparent; pointer-events: auto; --poster-color: transparent;
@@ -54,17 +56,17 @@
         .shutter-inner { width: 54px; height: 54px; background: white; border-radius: 50%; transition: 0.1s; }
         .shutter-btn:active .shutter-inner { transform: scale(0.9); background: #ff0040; }
 
-        /* دکمه شروع دوربین (رفع مشکل سیاه بودن) */
         #start-camera-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 50;
-            display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px;
+            background: rgba(0,0,0,0.9); z-index: 50;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; text-align: center;
         }
         #start-btn {
             padding: 15px 30px; background: #ff0040; color: white; border: none; border-radius: 30px;
             font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 0 20px rgba(255, 0, 64, 0.5);
         }
-        #error-msg { color: red; font-size: 12px; margin-top: 10px; display: none; }
+        #status-msg { color: #00ff88; font-size: 14px; margin-top: 20px; max-width: 80%; }
+        #error-msg { color: #ff3333; font-size: 14px; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
@@ -73,15 +75,17 @@
     <canvas id="canvas3d"></canvas>
 
     <div id="start-camera-overlay">
-        <h2 style="color:white;">حالت پرو لباس</h2>
-        <button id="start-btn" onclick="startExperience()">📷 روشن کردن دوربین</button>
+        <h2 style="color:white;">حالت پرو لباس (دوربین اصلی)</h2>
+        <p style="color:#ccc; font-size: 0.9rem;">لطفا فایل suit.glb را آپلود کرده باشید</p>
+        <button id="start-btn" onclick="startExperience()">📷 روشن کردن دوربین پشت</button>
+        <p id="status-msg">منتظر شروع...</p>
         <p id="error-msg"></p>
     </div>
 
     <div class="ui-overlay">
         <div class="header-glass">
             <a href="index.html" class="back-btn">← بازگشت</a>
-            <div style="color:#fff; font-weight:bold;">3D SUIT MODE</div>
+            <div style="color:#fff; font-weight:bold;">3D SUIT</div>
         </div>
         <div class="shutter-btn" onclick="takePhoto()"><div class="shutter-inner"></div></div>
     </div>
@@ -94,12 +98,16 @@
     </model-viewer>
 
     <script>
-        // آدرس مدل سه بعدی که از فایل لوکال خوانده می‌شود
+        // نام فایل مدل لباس (حتما چک کنید که این فایل در گیت‌هاب باشد)
         const MODEL_URL = 'suit.glb'; 
         
+        // اگر لباس خیلی کوچک یا بزرگ بود، این عدد را تغییر دهید (مثلا 10 یا 50)
+        const BASE_SCALE = 20; 
+
         const videoElement = document.querySelector('.input_video');
         const canvas3d = document.getElementById('canvas3d');
         const startOverlay = document.getElementById('start-camera-overlay');
+        const statusMsg = document.getElementById('status-msg');
         const errorMsg = document.getElementById('error-msg');
         
         // --- Three.js Setup ---
@@ -108,29 +116,36 @@
         const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, alpha: true, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         
-        // نور
-        const light = new THREE.AmbientLight(0xffffff, 1);
-        scene.add(light);
+        // نور قوی‌تر برای دیده شدن مدل
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-        dirLight.position.set(0, 5, 5);
+        dirLight.position.set(2, 5, 5);
         scene.add(dirLight);
 
         let videoTexture; 
-
         let suitModel = null;
         const loader = new THREE.GLTFLoader();
         
-        // لود کردن فایل suit.glb
+        // لود مدل
+        statusMsg.innerText = "در حال دانلود مدل suit.glb ...";
         loader.load(MODEL_URL, (gltf) => {
             suitModel = gltf.scene;
-            suitModel.scale.set(5, 5, 5);
             suitModel.visible = false;
             scene.add(suitModel);
-            console.log("Model Loaded: suit.glb");
-        }, undefined, (error) => {
-            console.error("خطا در لود مدل suit.glb:", error);
+            console.log("Model Loaded Successfully");
+            statusMsg.innerText = "مدل لود شد. دکمه بالا را بزنید.";
+        }, 
+        (xhr) => {
+            // نمایش درصد لود
+            const percent = Math.round((xhr.loaded / xhr.total * 100));
+            if(percent < 100) statusMsg.innerText = `در حال دانلود مدل: ${percent}%`;
+        },
+        (error) => {
+            console.error(error);
             errorMsg.style.display = 'block';
-            errorMsg.innerText = "فایل suit.glb پیدا نشد. لطفاً مطمئن شوید فایل آپلود شده است.";
+            errorMsg.innerText = "خطا: فایل suit.glb پیدا نشد! لطفا مطمئن شوید فایل را آپلود کرده‌اید.";
+            statusMsg.innerText = "";
         });
 
         camera3d.position.z = 5;
@@ -145,6 +160,7 @@
         });
 
         pose.onResults((results) => {
+            // آپدیت پس زمینه ویدیو
             if(videoTexture) {
                 videoTexture.needsUpdate = true;
                 scene.background = videoTexture;
@@ -154,32 +170,54 @@
                 const leftShoulder = results.poseLandmarks[11];
                 const rightShoulder = results.poseLandmarks[12];
                 
+                // شرط دیده شدن شانه‌ها
                 if(leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5) {
                     suitModel.visible = true;
+                    
+                    // مخفی کردن پیام‌ها وقتی مدل پیدا شد
+                    statusMsg.style.display = 'none';
 
                     const centerX = (leftShoulder.x + rightShoulder.x) / 2;
                     const centerY = (leftShoulder.y + rightShoulder.y) / 2;
                     
-                    const x = (1 - centerX) * 2 - 1; 
-                    const y = -(centerY * 2 - 1); 
+                    // محاسبات مختصات برای دوربین پشت (بدون قرینه سازی)
+                    const x = (centerX - 0.5) * 2; // نرمال سازی (-1 تا 1)
+                    const y = -(centerY * 2 - 1);  // معکوس کردن Y (چون در 3D بالا مثبت است)
                     
-                    suitModel.position.set(x * 4, y * 3, 0); 
+                    // تنظیم موقعیت (ضرایب 4 و 3 برای پوشش عرض صفحه است)
+                    suitModel.position.set(x * 5, y * 3.5, 0); 
                     
+                    // محاسبه سایز داینامیک بر اساس فاصله شانه‌ها
                     const dist = Math.sqrt(Math.pow(rightShoulder.x - leftShoulder.x, 2) + Math.pow(rightShoulder.y - leftShoulder.y, 2));
-                    const s = dist * 20; 
+                    const s = dist * BASE_SCALE; 
                     suitModel.scale.set(s, s, s);
+                    
+                    // محاسبه چرخش (Rotation) برای کج شدن بدن
+                    const angle = Math.atan2(rightShoulder.y - leftShoulder.y, rightShoulder.x - leftShoulder.x);
+                    // چرخش حول محور Z (چپ و راست شدن شانه‌ها)
+                    // در مدیاپایپ زاویه برعکس است، با منفی اصلاح میکنیم
+                    suitModel.rotation.z = -angle; 
+                } else {
+                     // اگر شانه‌ها دیده نشدند مدل را موقتا مخفی کن
+                     // suitModel.visible = false; 
                 }
             }
             renderer.render(scene, camera3d);
         });
 
-        // --- تابع شروع با کلیک کاربر ---
         async function startExperience() {
             try {
-                document.getElementById('start-btn').innerText = "در حال اتصال...";
+                const btn = document.getElementById('start-btn');
+                btn.innerText = "در حال راه‌اندازی دوربین...";
+                btn.disabled = true;
                 
+                // درخواست دوربین پشت (environment)
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: 1280, height: 720 },
+                    video: { 
+                        facingMode: 'environment', // کلید باز کردن دوربین پشت
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 720 } 
+                    },
                     audio: false
                 });
 
@@ -201,8 +239,9 @@
             } catch (err) {
                 console.error(err);
                 errorMsg.style.display = 'block';
-                errorMsg.innerText = "خطا: دسترسی به دوربین داده نشد.";
+                errorMsg.innerText = "خطا: دسترسی به دوربین پشت داده نشد یا موجود نیست.";
                 document.getElementById('start-btn').innerText = "تلاش مجدد";
+                document.getElementById('start-btn').disabled = false;
             }
         }
 
