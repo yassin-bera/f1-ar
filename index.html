@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fa">
 <head>
@@ -17,25 +18,18 @@
             height: 100dvh; 
         }
 
+        /* کانتینر اصلی */
         model-viewer {
             width: 100%;
             height: 100%;
             background: radial-gradient(circle at center, #2a2a2a 0%, #000000 100%);
             --poster-color: transparent;
-        }
-
-        .ui-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            z-index: 10;
+            z-index: 1;
         }
 
         .header-glass {
+            position: absolute;
+            top: 20px; left: 20px; right: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -46,6 +40,7 @@
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             pointer-events: auto;
+            z-index: 100; /* بالاتر از همه */
         }
 
         .logo-text { color: #fff; font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; }
@@ -58,58 +53,43 @@
         }
         .blink-dot { width: 8px; height: 8px; background: #00ff88; border-radius: 50%; animation: blink 2s infinite; }
 
-        /* استایل دکمه شاتر */
-        .shutter-container {
-            position: absolute;
-            bottom: 40px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-            pointer-events: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
+        /* دکمه شروع AR (وسط صفحه پایین) */
+        #ar-button {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(45deg, #ff0040, #ff5e00);
+            color: white; border: none; padding: 14px 40px; border-radius: 50px;
+            font-family: 'Orbitron', sans-serif; font-size: 1rem; font-weight: bold;
+            letter-spacing: 1px; box-shadow: 0 0 20px rgba(255, 0, 64, 0.4);
+            transition: all 0.3s ease; pointer-events: auto; white-space: nowrap;
+            z-index: 50;
         }
+        #ar-button:active { transform: translateX(-50%) scale(0.95); }
 
+        /* دکمه شاتر (مخصوص حالت WebXR) */
         .shutter-btn {
+            position: fixed; /* فیکس شده روی صفحه حتی در AR وب */
+            bottom: 40px; 
+            left: 50%; 
+            transform: translateX(-50%);
             width: 70px; 
             height: 70px; 
             background: rgba(255,255,255,0.2); 
             border-radius: 50%;
             border: 4px solid white; 
             cursor: pointer; 
-            display: flex; 
+            display: none; /* پیش فرض مخفی است تا وقتی AR باز شود */
             justify-content: center; 
             align-items: center;
-            transition: all 0.2s;
+            z-index: 999; /* بالاترین اولویت */
+            pointer-events: auto;
         }
         
-        .shutter-inner { 
-            width: 54px; 
-            height: 54px; 
-            background: white; 
-            border-radius: 50%; 
-            transition: 0.1s; 
-        }
-        
-        .shutter-btn:active .shutter-inner { 
-            transform: scale(0.9); 
-            background: #ff0040; 
-        }
-        .shutter-btn:active {
-            transform: scale(0.95);
-        }
+        .shutter-inner { width: 54px; height: 54px; background: white; border-radius: 50%; }
+        .shutter-btn:active .shutter-inner { transform: scale(0.9); background: #ff0040; }
 
-        /* دکمه AR (مخفی شده در حالت عادی تا وقتی مدل لود شود) */
-        #ar-button {
-            display: none; /* ما از دکمه شاتر استفاده می‌کنیم */
-        }
-        
-        /* افکت فلش هنگام عکس گرفتن */
         #flash-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; opacity: 0; pointer-events: none; z-index: 200;
+            background: white; opacity: 0; pointer-events: none; z-index: 1000;
             transition: opacity 0.2s;
         }
 
@@ -121,17 +101,13 @@
 
     <div id="flash-overlay"></div>
 
-    <div class="ui-overlay">
-        <div class="header-glass">
-            <div class="logo-text">F1 <span class="logo-highlight">AR</span> HUB</div>
-            <div class="status-badge"><div class="blink-dot"></div>READY</div>
-        </div>
-        
-        <div class="shutter-container">
-            <div class="shutter-btn" onclick="takeSnapshot()">
-                <div class="shutter-inner"></div>
-            </div>
-        </div>
+    <div class="header-glass">
+        <div class="logo-text">F1 <span class="logo-highlight">AR</span> HUB</div>
+        <div class="status-badge"><div class="blink-dot"></div>READY</div>
+    </div>
+    
+    <div class="shutter-btn" id="custom-shutter" onclick="takeSnapshot()">
+        <div class="shutter-inner"></div>
     </div>
 
     <model-viewer 
@@ -152,24 +128,43 @@
         tone-mapping="commerce"
         exposure="1"
     >
+        <button slot="ar-button" id="ar-button">
+            START ENGINE
+        </button>
     </model-viewer>
 
     <script>
         const viewer = document.getElementById('viewer');
+        const arButton = document.getElementById('ar-button');
+        const customShutter = document.getElementById('custom-shutter');
         const flash = document.getElementById('flash-overlay');
 
-        viewer.addEventListener('load', () => {
-            console.log('F1 Car Loaded');
+        // وقتی کاربر دکمه استارت را زد
+        arButton.addEventListener('click', () => {
+            // تلاش می‌کنیم دکمه شاتر را نشان دهیم (فقط در WebXR دیده می‌شود)
+            // در آیفون این دکمه دیده نمی‌شود چون سیستم عامل روی آن را می‌پوشاند
+            customShutter.style.display = 'flex';
         });
 
-        // تابع عکس گرفتن
+        // مدیریت نمایش دکمه شاتر بر اساس وضعیت AR
+        viewer.addEventListener('ar-status', (event) => {
+            if(event.detail.status === 'session-started') {
+                // اگر وارد حالت AR شدیم، دکمه شاتر را نشان بده
+                customShutter.style.display = 'flex';
+                // دکمه استارت را مخفی کن
+                arButton.style.display = 'none';
+            } else {
+                // اگر خارج شدیم
+                customShutter.style.display = 'none';
+                arButton.style.display = 'block';
+            }
+        });
+
         async function takeSnapshot() {
-            // افکت فلش
             flash.style.opacity = 1;
             setTimeout(() => flash.style.opacity = 0, 100);
 
             try {
-                // تلاش برای گرفتن عکس از مدل
                 const blob = await viewer.toBlob({mimeType: 'image/png'});
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -178,9 +173,8 @@
                 a.click();
                 URL.revokeObjectURL(url);
             } catch (err) {
-                console.log("Screenshot capability limited:", err);
-                // اگر مرورگر اجازه نداد، پیام راهنما بده
-                alert("برای ذخیره تصویر در این حالت، لطفاً اسکرین‌شات بگیرید (دکمه Power + کم کردن صدا).");
+                console.log("Error taking photo:", err);
+                alert("در این گوشی امکان عکس گرفتن با دکمه وجود ندارد. لطفاً اسکرین‌شات بگیرید.");
             }
         }
     </script>
